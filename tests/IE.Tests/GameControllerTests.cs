@@ -1,6 +1,4 @@
 using IE.Controller;
-using IE.Controller.Views;
-using IE.Model;
 using IE.Model.Diagnostics;
 using IE.Tests.Fakes;
 using Xunit;
@@ -8,195 +6,91 @@ using Xunit;
 namespace IE.Tests;
 
 /// <summary>
-/// Controller flows driven through the mock view and the synchronous pacer. These
-/// cover the invariants that are easy to break by accident: one refresh per state
-/// change, one undo entry per real change, none for a no-op.
+/// Covers the controller shell: boot paints exactly once through the single refresh
+/// funnel, and says so in the log. Handler and undo coverage returns alongside the
+/// first mutating handler.
 /// </summary>
 public sealed class GameControllerTests : IDisposable
 {
+    private readonly RecordingLogSink _sink = new();
     private readonly FakeMainView _view = new();
     private readonly SynchronousPacer _pacer = new();
-    private readonly ExtractionState _state = new(gridWidth: 4, gridHeight: 3, oreRemaining: 100, drillPower: 8);
     private readonly SessionState _session = new();
-    private readonly GameController _controller;
 
     public GameControllerTests()
     {
         Log.Reset();
-        _controller = new GameController(_state, _session, _view, _pacer);
-        _controller.Start();
+        Log.Install(_sink);
+        Log.SetLevel(LogCategory.Boot, LogLevel.Trace);
+        Log.SetLevel(LogCategory.Controller, LogLevel.Trace);
+        Log.SetLevel(LogCategory.View, LogLevel.Trace);
     }
 
     public void Dispose() => Log.Reset();
 
+    private GameController Build() => new(_session, _view, _pacer);
+
     [Fact]
-    public void StartPaintsTheOpeningFrame()
+    public void StartPaintsExactlyOnce()
     {
+        GameController controller = Build();
+
+        controller.Start();
+
         Assert.Equal(1, _view.RenderCount);
-        Assert.Equal(100, _view.Last.OreRemaining);
-        Assert.False(_view.Last.CanUndo);
+        Assert.Equal(1, _session.RendersThisSession);
     }
 
     [Fact]
-    public void ExtractMutatesTheModelAndRepaintsExactlyOnce()
+    public void StartHandsTheViewTheStatusLine()
     {
-        _controller.HandleExtractPressed();
+        GameController controller = Build();
 
-        Assert.Equal(2, _view.RenderCount);
-        Assert.Equal(92, _view.Last.OreRemaining);
-        Assert.Equal(8, _view.Last.OreExtracted);
-        Assert.Equal(new[] { 8 }, _view.FeedbackYields);
-    }
-
-    [Fact]
-    public void EveryRealChangePushesExactlyOneUndoEntry()
-    {
-        _controller.HandleExtractPressed();
-        _controller.HandleMovePressed(1, 0);
-
-        Assert.Equal(2, _controller.UndoDepth);
-        Assert.True(_view.Last.CanUndo);
-    }
-
-    [Fact]
-    public void ANoOpInteractionPushesNoUndoEntry()
-    {
-        // Blocked by the grid edge: the handler runs, the status line changes, but
-        // no snapshotted state moves -- so undo must not gain an entry.
-        _controller.HandleMovePressed(-1, 0);
-
-        Assert.Equal(0, _controller.UndoDepth);
-        Assert.False(_view.Last.CanUndo);
-        Assert.Equal(2, _view.RenderCount);
-    }
-
-    [Fact]
-    public void UndoRestoresTheCoreStateAndTheUserIntentSlice()
-    {
-        _controller.HandleExtractPressed();
-        _controller.HandleToggleAutoExtract();
-        Assert.True(_session.AutoExtractEnabled);
-
-        _controller.HandleUndoPressed();
-
-        Assert.False(_session.AutoExtractEnabled);
-        Assert.Equal(92, _state.OreRemaining);
-
-        _controller.HandleUndoPressed();
-
-        Assert.Equal(100, _state.OreRemaining);
-        Assert.Equal(0, _state.OreExtracted);
-        Assert.Equal(0, _controller.UndoDepth);
-    }
-
-    [Fact]
-    public void UndoOnAnEmptyStackIsHarmlessAndStillRepaints()
-    {
-        _controller.HandleUndoPressed();
-
-        Assert.Equal(2, _view.RenderCount);
-        Assert.Equal(100, _state.OreRemaining);
-    }
-
-    [Fact]
-    public void TransientSessionFieldsAreNotRestoredByUndo()
-    {
-        _controller.HandleExtractPressed();
-        int ticksAfterExtract = _session.TicksThisSession;
-
-        _controller.HandleUndoPressed();
-
-        // The counter is diagnostics, not player intent: undo leaves it alone.
-        Assert.Equal(ticksAfterExtract, _session.TicksThisSession);
-    }
-
-    [Fact]
-    public void AnExceptionInsideAHandlerPropagatesAndPushesNothing()
-    {
-        Assert.Throws<ArgumentOutOfRangeException>(() => _controller.HandleUpgradePressed(-1));
-
-        Assert.Equal(0, _controller.UndoDepth);
-    }
-
-    [Fact]
-    public void EnablingAutoExtractSchedulesATickAtTheConfiguredInterval()
-    {
-        _controller.HandleToggleAutoExtract();
-
-        Assert.Equal(1, _pacer.PendingCount);
-        Assert.Equal(new[] { GameController.AutoExtractIntervalMs }, _pacer.ScheduledDelays);
-    }
-
-    [Fact]
-    public void EachAutoTickExtractsAndQueuesTheNextOne()
-    {
-        _controller.HandleToggleAutoExtract();
-
-        Assert.True(_pacer.RunNext());
-
-        Assert.Equal(92, _state.OreRemaining);
-        Assert.Equal(1, _pacer.PendingCount);
-    }
-
-    [Fact]
-    public void AutoExtractStopsItselfWhenTheSeamRunsOut()
-    {
-        ExtractionState nearlyEmpty = new(gridWidth: 4, gridHeight: 3, oreRemaining: 8, drillPower: 8);
-        SessionState session = new();
-        FakeMainView view = new();
-        SynchronousPacer pacer = new();
-        GameController controller = new(nearlyEmpty, session, view, pacer);
         controller.Start();
 
-        controller.HandleToggleAutoExtract();
-        pacer.RunUpTo(maxTicks: 10);
-
-        Assert.False(session.AutoExtractEnabled);
-        Assert.Equal(0, nearlyEmpty.OreRemaining);
-        Assert.Equal(0, pacer.PendingCount);
+        Assert.Equal(_session.StatusText, _view.Last.StatusText);
+        Assert.NotEqual(string.Empty, _view.Last.StatusText);
     }
 
     [Fact]
-    public void DisablingAutoExtractDropsPendingTicks()
+    public void NothingPaintsBeforeStart()
     {
-        _controller.HandleToggleAutoExtract();
-        _controller.HandleToggleAutoExtract();
+        Build();
 
+        Assert.Equal(0, _view.RenderCount);
+    }
+
+    [Fact]
+    public void BootAndControllerPathsAreInstrumented()
+    {
+        GameController controller = Build();
+
+        controller.Start();
+
+        Assert.True(_sink.HasCategory(LogCategory.Controller), "construction emitted no Controller line");
+        Assert.True(_sink.HasCategory(LogCategory.Boot), "start emitted no Boot line");
+        Assert.Contains(_sink.MessagesFor(LogCategory.View), message => message.Contains("refresh", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void SilencedCategoriesEmitNothing()
+    {
+        Log.SetLevel(LogCategory.View, LogLevel.Off);
+        GameController controller = Build();
+
+        controller.Start();
+
+        Assert.False(_sink.HasCategory(LogCategory.View), "View lines leaked past an Off level");
+    }
+
+    [Fact]
+    public void TheShellSchedulesNoTimedWork()
+    {
+        GameController controller = Build();
+
+        controller.Start();
+
+        Assert.Same(_pacer, controller.Pacer);
         Assert.Equal(0, _pacer.PendingCount);
-        Assert.False(_session.AutoExtractEnabled);
-    }
-
-    [Fact]
-    public void TheViewOnlyEverReceivesPrimitives()
-    {
-        // Guards the "views never mutate the model" rule at the type level: if the
-        // view model ever gains a reference to live state, this stops compiling.
-        MainViewModel model = _view.Last;
-
-        Assert.IsType<int>(model.OreRemaining);
-        Assert.IsType<string>(model.StatusText);
-        Assert.IsType<bool>(model.CanUndo);
-    }
-
-    [Fact]
-    public void InstrumentationProvesTheControllerPathRanWithoutLeakingOtherCategories()
-    {
-        RecordingLogSink sink = new();
-        Log.Reset();
-        Log.Install(sink);
-        Log.Configure("Controller:info");
-
-        GameController controller = new(
-            new ExtractionState(4, 3, 100, 8), new SessionState(), new FakeMainView(), new SynchronousPacer());
-        controller.Start();
-        controller.HandleToggleAutoExtract();
-
-        Assert.True(sink.HasCategory(LogCategory.Controller));
-        Assert.Contains(sink.MessagesFor(LogCategory.Controller), message => message.Contains("auto-extract=True"));
-
-        // Correct gating: categories nobody turned up stay silent.
-        Assert.False(sink.HasCategory(LogCategory.View));
-        Assert.False(sink.HasCategory(LogCategory.Undo));
-        Assert.False(sink.HasCategory(LogCategory.Boot));
     }
 }

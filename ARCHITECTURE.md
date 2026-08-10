@@ -4,6 +4,10 @@ Infinite Extraction is a 2D game: a C# core with a Godot 4 view layer. The core 
 all gameplay logic and is framework-free; Godot supplies rendering, input, and timing
 and nothing else.
 
+The core is currently a shell: the layering, the logging system, the view boundary,
+and the pacer are in place, and there is no gameplay on top of them yet. Domain state
+and rules go in `IE.Model`, orchestration in `IE.Controller` — see Extension points.
+
 ## Layers
 
 ```
@@ -23,9 +27,9 @@ the purity proof.
 
 | Project | Path | May reference | Holds |
 |---|---|---|---|
-| `IE.Model` | `src/IE.Model/` | nothing | domain state, static rules, primitives, logging system |
-| `IE.Controller` | `src/IE.Controller/` | `IE.Model` | input handling, mutation orchestration, undo, view/pacer interfaces |
-| `IE.ViewMath` | `src/IE.ViewMath/` | `IE.Model` | grid↔pixel math (the only core assembly where floats are legal) |
+| `IE.Model` | `src/IE.Model/` | nothing | logging system; domain state, static rules, primitives |
+| `IE.Controller` | `src/IE.Controller/` | `IE.Model` | input handling, mutation orchestration, view/pacer interfaces |
+| `IE.ViewMath` | `src/IE.ViewMath/` | `IE.Model` | viewport/DPI math (the only core assembly where floats are legal) |
 | `IE.App` | `app/` | all three + Godot | scene roots, view implementations, platform adapters |
 | `IE.Tests` | `tests/IE.Tests/` | all three | xUnit suite, fakes, architecture guardrails |
 
@@ -40,32 +44,42 @@ the purity proof.
   record struct of primitives. The view has no handle on live state to write through.
 - **The controller never touches an engine type.** It sees `IMainView` and `IPacer`.
 - **One refresh per state change.** Every handler ends in `GameController.Refresh`,
-  the single UI update path.
-- **One undo entry per real change.** `GameController.Track` captures a `Snapshot`
-  before the body, compares after, and pushes only if something moved. Exceptions
-  propagate and push nothing.
-- **Snapshots cover core state plus the user-intent slice of session state.**
-  `SessionState.AutoExtractEnabled` is snapshotted; `StatusText` and
-  `TicksThisSession` are transient and are not.
+  the single UI update path. `Refresh` is private; nothing else repaints.
+- **`SessionState` is split by snapshot eligibility.** User-intent fields belong in an
+  undo snapshot, transient ones (`StatusText`, `RendersThisSession`) never do.
 
-## Call flow: a key press
+## Call flow: boot
 
-1. `MainScene._UnhandledInput` maps the key to a controller handler. The scene does
-   not touch the model.
-2. `GameController.Handle*Pressed` runs inside `Track`, which snapshots pre-state.
-3. The handler body calls a static rules method (`ExtractionRules.Extract`, …) — the
-   only place gameplay decisions live.
-4. `Track` compares snapshots, pushes one undo entry if state changed, then calls
-   `Refresh`.
-5. `Refresh` projects state into a `MainViewModel` and hands it to `IMainView.Render`.
-6. `MainScene.Render` writes labels and positions the drill via `PixelLayout`.
+1. Godot loads `res://scenes/Main.tscn`; `MainScene._Ready` runs.
+2. `MainScene` installs `GodotLogSink`, applies `IE_LOG`, and logs the boot line —
+   instrumentation first, so the rest of boot is visible.
+3. It constructs `SessionState`, then `GameController`, injecting itself as
+   `IMainView` and an `EnginePacer` as `IPacer`.
+4. `GameController.Start` sets the status line and calls `Refresh`.
+5. `Refresh` projects state into a `MainViewModel`, counts the paint in
+   `SessionState.RendersThisSession`, and hands the model to `IMainView.Render`.
+6. `MainScene.Render` writes the status label.
+
+`MainScene._UnhandledInput` maps Escape to quit and forwards nothing else. Key
+handling belongs in the controller: the scene maps a key to a handler and never
+touches state itself.
+
+## Extension points
+
+- A domain type and a static rules class in `IE.Model`, integer-only, no I/O.
+- A `Handle*Pressed` method on `GameController` per user intent, wrapped in a
+  tracking helper that snapshots pre-state, runs the body, and pushes one undo entry
+  iff state changed — exceptions propagate and push nothing.
+- Fields on `MainViewModel` for whatever the view must paint, never a reference to
+  live state.
+- A key case in `MainScene._UnhandledInput` forwarding to the handler.
 
 ## Timing
 
-`IPacer` is the controller's only view of time. `EnginePacer` defers to
-`SceneTree.CreateTimer`; `SynchronousPacer` queues callbacks so tests advance time
-explicitly. Auto-extract reschedules itself one tick at a time and stops when the seam
-empties.
+`IPacer` is the controller's only view of time, exposed as `GameController.Pacer`.
+`EnginePacer` defers to `SceneTree.CreateTimer`; `SynchronousPacer` queues callbacks
+so tests advance time explicitly. Timed behaviour goes through this and never through
+an engine timer.
 
 ## Instrumentation
 
@@ -74,6 +88,10 @@ compiled in; `Info`/`Debug`/`Trace` are gated on `IE_LOG_VERBOSE`, which
 `Directory.Build.props` defines in every configuration so shipped builds still log.
 Gate log-only precomputation on `Log.VerboseCompiled`. `GodotLogSink` is the only
 place in the codebase that calls an engine print API.
+
+`IE_HEADLESS_SELFTEST=1` makes `MainScene` assert the boot path reached the real view
+and quit with the matching exit code, so a headless run proves the engine-side wiring
+executes. Extend the assertion as gameplay lands.
 
 ## Toolchain
 

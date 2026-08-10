@@ -2,10 +2,7 @@ using Godot;
 using IE.App.Platform;
 using IE.Controller;
 using IE.Controller.Views;
-using IE.Model;
 using IE.Model.Diagnostics;
-using IE.Model.Primitives;
-using IE.ViewMath;
 
 namespace IE.App;
 
@@ -18,34 +15,21 @@ namespace IE.App;
 /// </summary>
 public partial class MainScene : Node2D, IMainView
 {
-    private const int StartingOre = 240;
-    private const int StartingDrillPower = 8;
-    private const int GridColumns = 12;
-    private const int GridRows = 8;
-    private const int UpgradeIncrement = 2;
-
-    private ColorRect _drill = null!;
     private Label _status = null!;
-    private Label _readout = null!;
     private GameController _controller = null!;
 
     public override void _Ready()
     {
-        _drill = GetNode<ColorRect>("Drill");
         _status = GetNode<Label>("UI/Status");
-        _readout = GetNode<Label>("UI/Readout");
 
         // Instrumentation first, so the rest of boot is visible in the log.
         Log.Install(new GodotLogSink());
         Log.Configure(OS.GetEnvironment("IE_LOG"));
         Log.Info(LogCategory.Boot, $"boot; verbose-compiled={Log.VerboseCompiled}");
 
-        ExtractionState state = new(GridColumns, GridRows, StartingOre, StartingDrillPower);
         SessionState session = new();
-        _controller = new GameController(state, session, this, new EnginePacer(GetTree()));
+        _controller = new GameController(session, this, new EnginePacer(GetTree()));
         _controller.Start();
-
-        _drill.Size = new Vector2(PixelLayout.CellSizePixels, PixelLayout.CellSizePixels);
 
         if (OS.GetEnvironment("IE_HEADLESS_SELFTEST") == "1")
         {
@@ -58,20 +42,7 @@ public partial class MainScene : Node2D, IMainView
     public void Render(MainViewModel model)
     {
         _status.Text = model.StatusText;
-        _readout.Text =
-            $"ore {model.OreRemaining}    banked {model.OreExtracted}    " +
-            $"power {model.DrillPower}    auto {(model.AutoExtractEnabled ? "on" : "off")}" +
-            $"    undo {(model.CanUndo ? "available" : "empty")}";
-
-        (float x, float y) = PixelLayout.CellTopLeft(new GridPosition(model.DrillX, model.DrillY));
-        _drill.Position = new Vector2(x, y);
-        _drill.Modulate = model.CanExtract ? Colors.White : new Color(1, 1, 1, 0.35f);
-    }
-
-    public void PlayExtractionFeedback(int yield)
-    {
-        Log.Trace(LogCategory.View, $"extraction feedback yield={yield}");
-        _drill.Modulate = Colors.White;
+        Log.Trace(LogCategory.View, $"render {model}");
     }
 
     // ---------------------------------------------------------------- input ---
@@ -83,47 +54,38 @@ public partial class MainScene : Node2D, IMainView
             return;
         }
 
-        switch (key.Keycode)
+        if (key.Keycode != Key.Escape)
         {
-            case Key.Space: _controller.HandleExtractPressed(); break;
-            case Key.W: _controller.HandleMovePressed(0, -1); break;
-            case Key.S: _controller.HandleMovePressed(0, 1); break;
-            case Key.A: _controller.HandleMovePressed(-1, 0); break;
-            case Key.D: _controller.HandleMovePressed(1, 0); break;
-            case Key.E: _controller.HandleUpgradePressed(UpgradeIncrement); break;
-            case Key.Tab: _controller.HandleToggleAutoExtract(); break;
-            case Key.U: _controller.HandleUndoPressed(); break;
-            case Key.Escape: GetTree().Quit(); break;
-            default: return;
+            return;
         }
 
+        Log.Debug(LogCategory.Input, "escape pressed; quitting");
         GetViewport().SetInputAsHandled();
+        GetTree().Quit();
     }
 
     // ------------------------------------------------------------- selftest ---
 
     /// <summary>
-    /// Drives one scripted interaction against the REAL views and quits on its own,
-    /// so a headless run proves the engine-side wiring actually executes. Enabled by
-    /// IE_HEADLESS_SELFTEST=1; see scripts/headless-selftest.sh.
+    /// Proves the engine-side wiring actually executes: boot ran, the controller
+    /// reached the refresh funnel, and the real view painted. Quits on its own, so
+    /// a headless run produces no teardown noise. Enabled by IE_HEADLESS_SELFTEST=1;
+    /// see scripts/headless-selftest.sh. Extend it as gameplay lands.
     /// </summary>
     private void RunSelfTest()
     {
         Log.Info(LogCategory.Boot, "selftest: begin");
 
-        _controller.HandleExtractPressed();
-        _controller.HandleMovePressed(1, 0);
-        _controller.HandleUpgradePressed(UpgradeIncrement);
-        _controller.HandleUndoPressed();
+        int renders = _controller.Session.RendersThisSession;
+        bool ok = renders > 0 && _status.Text.Length > 0;
 
-        bool ok = _controller.State.OreExtracted > 0 && _controller.UndoDepth > 0;
         if (ok)
         {
-            Log.Info(LogCategory.Boot, $"selftest: pass; {_controller.State}; undo depth {_controller.UndoDepth}");
+            Log.Info(LogCategory.Boot, $"selftest: pass; renders={renders}; status=\"{_status.Text}\"");
         }
         else
         {
-            Log.Error(LogCategory.Boot, $"selftest: FAIL; {_controller.State}; undo depth {_controller.UndoDepth}");
+            Log.Error(LogCategory.Boot, $"selftest: FAIL; renders={renders}; status=\"{_status.Text}\"");
         }
 
         GetTree().Quit(ok ? 0 : 1);

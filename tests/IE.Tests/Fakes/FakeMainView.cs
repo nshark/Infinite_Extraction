@@ -10,13 +10,9 @@ public sealed class FakeMainView : IMainView
 {
     public List<MainViewModel> Renders { get; } = new();
 
-    public List<int> FeedbackYields { get; } = new();
-
     public MainViewModel Last => Renders[^1];
 
     public int RenderCount => Renders.Count;
 
     public void Render(MainViewModel model) => Renders.Add(model);
-
-    public void PlayExtractionFeedback(int yield) => FeedbackYields.Add(yield);
 }

@@ -1,6 +1,6 @@
 using System.Reflection;
 using IE.Controller;
-using IE.Model;
+using IE.Model.Diagnostics;
 using Xunit;
 
 namespace IE.Tests.Architecture;
@@ -20,7 +20,7 @@ public sealed class NoFloatingPointTests
 {
     private static readonly Assembly[] DeterministicAssemblies =
     {
-        typeof(ExtractionState).Assembly,
+        typeof(Log).Assembly,
         typeof(GameController).Assembly,
     };
 

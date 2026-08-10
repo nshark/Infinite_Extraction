@@ -1,6 +1,6 @@
 using System.Reflection;
 using IE.Controller;
-using IE.Model;
+using IE.Model.Diagnostics;
 using IE.ViewMath;
 using Xunit;
 
@@ -17,9 +17,9 @@ namespace IE.Tests.Architecture;
 /// </summary>
 public sealed class AssemblyPurityTests
 {
-    private static readonly Assembly ModelAssembly = typeof(ExtractionState).Assembly;
+    private static readonly Assembly ModelAssembly = typeof(Log).Assembly;
     private static readonly Assembly ControllerAssembly = typeof(GameController).Assembly;
-    private static readonly Assembly ViewMathAssembly = typeof(PixelLayout).Assembly;
+    private static readonly Assembly ViewMathAssembly = typeof(ViewScale).Assembly;
 
     [Theory]
     [InlineData("IE.Model")]

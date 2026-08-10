@@ -6,7 +6,7 @@ This file provides guidance to any Claude agent working in this repository — C
 
 ## Session start
 
-At the very start of a new session — before exploring code, running commands, or making assumptions about what to do — ask the user what they'd like to work on. Keep the prompt to a single line (e.g. "What would you like to work on?"). Skip this only if the user's first message already contains a concrete task.
+At the very start of a new session — before exploring code, running commands, or making assumptions about what to do — ask the user what they'd like to work on. Keep the prompt to a single line (e.g. "What would you like to work on?"). Skip this only if the user's first message already contains a concrete task. Always read through the obsidian folder titled 'Infinite_Extraction'.
 
 ## Project Overview
 
@@ -99,7 +99,7 @@ Prefer lean over exhaustive: cut edge-case minutiae and redundant restatement, k
 
 ## Diagnostic / headless modes
 
-**`IE_HEADLESS_SELFTEST=1`** — `MainScene` boots normally against the *real* views and the real `EnginePacer`, runs one scripted interaction (extract → move → upgrade → undo), asserts the result, logs pass/fail, and calls `GetTree().Quit()` with the matching exit code. It self-exits by design: `sleep && kill` produces allocator/teardown warnings that look like a crash but are not.
+**`IE_HEADLESS_SELFTEST=1`** — `MainScene` boots normally against the *real* views and the real `EnginePacer`, asserts the boot path reached the view, logs pass/fail, and calls `GetTree().Quit()` with the matching exit code. Extend the scripted interaction as gameplay lands. It self-exits by design: `sleep && kill` produces allocator/teardown warnings that look like a crash but are not.
 
 **`IE_LOG=<spec>`** — sets per-category log levels at boot. Spec is a comma-separated list of `Category:Level`, e.g. `Controller:debug,View:trace`, or `all:trace`. Categories: `Boot`, `Model`, `Controller`, `View`, `Input`, `Undo`, `Save`. Levels: `off`, `error`, `warn`, `info`, `debug`, `trace`. Everything defaults to `warn`, so a plain run is quiet. A typo is ignored rather than thrown.
 
@@ -156,12 +156,12 @@ Enforced by `.editorconfig` with `EnforceCodeStyleInBuild` on. The first three a
 
 ## Notes
 
-- **Pinned entry points.** `app/project.godot` names `res://scenes/Main.tscn` as the main scene and `IE.App` as the assembly. `Main.tscn` binds `res://scripts/MainScene.cs` by path. Renaming any of the three, or the `MainScene` class, silently breaks the boot path — the window opens empty rather than erroring. The scene also depends on the node names `Drill`, `UI/Status`, and `UI/Readout`; `GetNode` throws at runtime if they move.
+- **Pinned entry points.** `app/project.godot` names `res://scenes/Main.tscn` as the main scene and `IE.App` as the assembly. `Main.tscn` binds `res://scripts/MainScene.cs` by path. Renaming any of the three, or the `MainScene` class, silently breaks the boot path — the window opens empty rather than erroring. The scene also depends on the node name `UI/Status`; `GetNode` throws at runtime if it moves.
 - **Godot rewrites files on open.** The editor reformats `project.godot` and reorders `.tscn`/`.tres` keys, and generates `.import` sidecars for every asset. Commit what it produces; do not fight the formatting. `.editorconfig` already exempts these from trimming and final-newline rules.
 - **`.import` sidecars are sources.** Every file under `app/` that Godot imports gets a `.import` file next to it. It must be committed alongside the asset or the project fails to load on another machine.
 - **The Godot app project must stay in `app/`.** `Godot.NET.Sdk` globs `**/*.cs` beneath the `.csproj`. Moving `IE.App.csproj` to the repo root would swallow `src/` and `tests/` into the app assembly and produce duplicate-symbol errors; the fix would be `<Compile Remove>` exclusions that quietly rot. Keeping the Godot project in its own directory avoids the problem entirely.
 - **Two `.sln` files are correct** — see Commands. Deleting `app/IE.App.sln` makes Godot regenerate one; deleting the root one breaks every script.
 - **No `--` inside an XML comment.** `.csproj` and `.props` comments cannot contain a double hyphen or end in one — MSBuild fails the whole restore with `MSB4025` before it does anything else. Use a single hyphen or a colon when writing prose in a build file.
 - **`Directory.Build.props` is the only place `TargetFramework` appears.** Adding one to an individual `.csproj` will drift from the app and produce confusing restore errors.
-- **`ExtractionState.Clone()` must copy every new field.** It backs the undo stack; a field added to the state but not to `Clone` produces undo bugs that no test currently catches. Add the field to `Snapshot.Matches` too if it is player-visible intent.
+- **A core-state clone must copy every new field.** Cloning backs the undo stack; a field added to the state but not to its clone produces undo bugs that no test currently catches. Add the field to the snapshot's equality check too if it is player-visible intent.
 - **A sandboxed session cannot verify anything here.** No .NET, no NuGet, no engine. Edit source freely, but say plainly that the change is unverified rather than implying it built.
