@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The float-allowed pressure-relief valve. Framework-free, references IE.Model
+       one way for primitives. IE.Model and IE.Controller must NEVER reference this
+       project - that is what keeps floats off the deterministic state path. -->
+  <PropertyGroup>
+    <RootNamespace>IE.ViewMath</RootNamespace>
+    <AssemblyName>IE.ViewMath</AssemblyName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../IE.Model/IE.Model.csproj" />
+  </ItemGroup>
+
+</Project>

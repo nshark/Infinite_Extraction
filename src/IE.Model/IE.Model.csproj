@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- The framework-free core. This project must NEVER reference the Godot SDK,
+       IE.Controller, or IE.ViewMath. An engine import here will not compile, and
+       AssemblyPurityTests fails the suite if a reference is ever added. -->
+  <PropertyGroup>
+    <RootNamespace>IE.Model</RootNamespace>
+    <AssemblyName>IE.Model</AssemblyName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

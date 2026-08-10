@@ -1,0 +1,25 @@
+<Project>
+
+  <!-- Single source of truth for the target framework across every project in the
+       repo, including the Godot app. net8.0 is the floor Godot.NET.Sdk requires
+       (Godot 4.4+). Bump here and nowhere else. -->
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <AnalysisLevel>latest</AnalysisLevel>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <!-- Instrumentation is a shipped feature, not debug scaffolding: IE_LOG_VERBOSE is
+       defined in EVERY configuration, so Info/Debug/Trace call sites survive into
+       release builds. Gate log-only precomputation on Log.VerboseCompiled, which is
+       driven by this same constant. Warn/Error are never conditional. -->
+  <PropertyGroup>
+    <DefineConstants>$(DefineConstants);IE_LOG_VERBOSE</DefineConstants>
+  </PropertyGroup>
+
+</Project>

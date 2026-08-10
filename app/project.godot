@@ -1,0 +1,35 @@
+; Engine configuration file for Infinite Extraction.
+;
+; The Godot editor REWRITES this file whenever the project is opened or a project
+; setting changes. Hand-edit sparingly and expect reordering; commit the result.
+
+config_version=5
+
+[application]
+
+config/name="Infinite Extraction"
+config/description="Infinite Extraction -- 2D extraction game. C# core, Godot view layer."
+config/version="0.1.0"
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+config/icon="res://icon.svg"
+
+[dotnet]
+
+project/assembly_name="IE.App"
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+renderer/rendering_method.mobile="gl_compatibility"
+
+[debug]
+
+gdscript/warnings/enable=true

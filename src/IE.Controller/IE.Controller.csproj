@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Framework-free orchestration. References IE.Model ONLY - one way, never back.
+       No Godot SDK reference: this project has to stay unit-testable with mock views
+       and a synchronous pacer, which is what makes controller flows provable. -->
+  <PropertyGroup>
+    <RootNamespace>IE.Controller</RootNamespace>
+    <AssemblyName>IE.Controller</AssemblyName>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../IE.Model/IE.Model.csproj" />
+  </ItemGroup>
+
+</Project>

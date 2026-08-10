@@ -1,0 +1,20 @@
+<Project Sdk="Godot.NET.Sdk/4.7.1">
+
+  <!-- The only project in the repo that may reference the engine. Framework-side
+       code only: scene roots, view implementations, platform adapters. Anything
+       worth unit-testing belongs in IE.Model / IE.Controller / IE.ViewMath instead.
+
+       TargetFramework comes from Directory.Build.props at the repo root. -->
+  <PropertyGroup>
+    <EnableDynamicLoading>true</EnableDynamicLoading>
+    <RootNamespace>IE.App</RootNamespace>
+    <AssemblyName>IE.App</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../src/IE.Model/IE.Model.csproj" />
+    <ProjectReference Include="../src/IE.Controller/IE.Controller.csproj" />
+    <ProjectReference Include="../src/IE.ViewMath/IE.ViewMath.csproj" />
+  </ItemGroup>
+
+</Project>
