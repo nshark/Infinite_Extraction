@@ -1,0 +1,19 @@
+[
+  {
+    "tier": 0,
+    "footprintWidth": 2,
+    "footprintHeight": 2,
+    "buildCost": [
+      { "resource": 1, "amount": 4 }
+    ]
+  },
+  {
+    "tier": 0,
+    "footprintWidth": 3,
+    "footprintHeight": 3,
+    "buildCost": [
+      { "resource": 1, "amount": 6 },
+      { "resource": 2, "amount": 4 }
+    ]
+  }
+]

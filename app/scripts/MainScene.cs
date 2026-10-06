@@ -2,7 +2,9 @@ using Godot;
 using IE.App.Platform;
 using IE.Controller;
 using IE.Controller.Views;
+using IE.Model;
 using IE.Model.Diagnostics;
+using IE.Model.State;
 
 namespace IE.App;
 
@@ -27,8 +29,10 @@ public partial class MainScene : Node2D, IMainView
         Log.Configure(OS.GetEnvironment("IE_LOG"));
         Log.Info(LogCategory.Boot, $"boot; verbose-compiled={Log.VerboseCompiled}");
 
+        GameData.Load();
+        GameState game = new();
         SessionState session = new();
-        _controller = new GameController(session, this, new EnginePacer(GetTree()));
+        _controller = new GameController(game, session, this, new EnginePacer(GetTree()));
         _controller.Start();
 
         if (OS.GetEnvironment("IE_HEADLESS_SELFTEST") == "1")

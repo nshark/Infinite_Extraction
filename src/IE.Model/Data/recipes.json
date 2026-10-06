@@ -1,0 +1,22 @@
+[
+  {
+    "auType": 0,
+    "baseTimeSeconds": 1,
+    "inputs": [
+      { "resource": 0, "amount": 1 }
+    ],
+    "outputs": [
+      { "resource": 1, "amount": 1 }
+    ]
+  },
+  {
+    "auType": 0,
+    "baseTimeSeconds": 1,
+    "inputs": [
+      { "resource": 0, "amount": 1 }
+    ],
+    "outputs": [
+      { "resource": 2, "amount": 1 }
+    ]
+  }
+]

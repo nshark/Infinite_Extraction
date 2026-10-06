@@ -6,7 +6,7 @@ This file provides guidance to any Claude agent working in this repository — C
 
 ## Session start
 
-At the very start of a new session — before exploring code, running commands, or making assumptions about what to do — ask the user what they'd like to work on. Keep the prompt to a single line (e.g. "What would you like to work on?"). Skip this only if the user's first message already contains a concrete task. Always read through the obsidian folder titled 'Infinite_Extraction'.
+At the very start of a new session — before exploring code, running commands, or making assumptions about what to do — ask the user what they'd like to work on. Keep the prompt to a single line (e.g. "What would you like to work on?"). Skip this only if the user's first message already contains a concrete task. Always read through the obsidian folder at `/Users/noah/Void_Sea/Infinite_Extraction`.
 
 ## Project Overview
 

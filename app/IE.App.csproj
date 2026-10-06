@@ -9,6 +9,7 @@
     <EnableDynamicLoading>true</EnableDynamicLoading>
     <RootNamespace>IE.App</RootNamespace>
     <AssemblyName>IE.App</AssemblyName>
+    <TargetFramework>net8.0</TargetFramework>
   </PropertyGroup>
 
   <ItemGroup>
