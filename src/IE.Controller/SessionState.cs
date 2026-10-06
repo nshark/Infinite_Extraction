@@ -1,3 +1,5 @@
+using IE.Model;
+
 namespace IE.Controller;
 
 /// <summary>
@@ -7,11 +9,17 @@ namespace IE.Controller;
 ///
 ///   * user-intent  -- the player chose it, so undo must restore it
 ///   * transient    -- derived or cosmetic, so undo must ignore it
-///
-/// The shell has only transient fields; user-intent ones arrive with gameplay.
 /// </summary>
 public sealed class SessionState
 {
+    // ---- user-intent (snapshotted for undo) ----
+
+    public AuType SelectedAuType { get; set; } = AuType.Smelter;
+
+    public RecipeId SelectedRecipe { get; set; } = RecipeId.SmeltScrapToIron;
+
+    public Direction SelectedRotation { get; set; } = Direction.North;
+
     // ---- transient (never snapshotted) ----
 
     /// <summary>Cosmetic status line. Recomputed on every refresh.</summary>

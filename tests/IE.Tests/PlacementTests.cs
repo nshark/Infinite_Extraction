@@ -183,4 +183,31 @@ public sealed class PlacementTests : IDisposable
             _sink.MessagesFor(LogCategory.Controller),
             m => m.Contains("place", StringComparison.OrdinalIgnoreCase) && m.Contains("3") && m.Contains("7"));
     }
+
+    [Fact]
+    public void HandleRotateCyclesDirection()
+    {
+        GameController controller = Build();
+        Assert.Equal(Direction.North, _session.SelectedRotation);
+
+        controller.HandleRotate();
+        Assert.Equal(Direction.East, _session.SelectedRotation);
+
+        controller.HandleRotate();
+        Assert.Equal(Direction.South, _session.SelectedRotation);
+
+        controller.HandleRotate();
+        Assert.Equal(Direction.West, _session.SelectedRotation);
+
+        controller.HandleRotate();
+        Assert.Equal(Direction.North, _session.SelectedRotation);
+    }
+
+    [Fact]
+    public void SessionDefaultsAreSmelter()
+    {
+        Assert.Equal(AuType.Smelter, _session.SelectedAuType);
+        Assert.Equal(RecipeId.SmeltScrapToIron, _session.SelectedRecipe);
+        Assert.Equal(Direction.North, _session.SelectedRotation);
+    }
 }

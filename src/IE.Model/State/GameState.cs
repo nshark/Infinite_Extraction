@@ -11,8 +11,8 @@ public class GameState
 
     }
 
-    public void Tick()
+    public void Update(int ticksElapsed)
     {
-        _time++;
+        _time+=ticksElapsed;
     }
 }

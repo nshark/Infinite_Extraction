@@ -66,7 +66,7 @@ public sealed class GameController
 
     private void OnTick()
     {
-        Game.Tick();
+        Game.Update(1);
         Log.Trace(LogCategory.Controller, "tick");
         Refresh();
         ScheduleTick();
@@ -127,6 +127,20 @@ public sealed class GameController
         _undoStack.Push(entry);
         Log.Info(LogCategory.Undo, "redo");
         Refresh();
+    }
+
+    // ----------------------------------------------------------- rotation ----
+
+    public void HandleRotate()
+    {
+        Session.SelectedRotation = Session.SelectedRotation switch
+        {
+            Direction.North => Direction.East,
+            Direction.East => Direction.South,
+            Direction.South => Direction.West,
+            _ => Direction.North,
+        };
+        Log.Debug(LogCategory.Controller, $"rotate → {Session.SelectedRotation}");
     }
 
     // ------------------------------------------------------------- refresh ----

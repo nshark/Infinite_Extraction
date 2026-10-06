@@ -18,11 +18,13 @@ namespace IE.App;
 public partial class MainScene : Node2D, IMainView
 {
     private Label _status = null!;
+    private FloorRenderer _floor = null!;
     private GameController _controller = null!;
 
     public override void _Ready()
     {
         _status = GetNode<Label>("UI/Status");
+        _floor = GetNode<FloorRenderer>("Floor");
 
         // Instrumentation first, so the rest of boot is visible in the log.
         Log.Install(new GodotLogSink());
@@ -46,26 +48,52 @@ public partial class MainScene : Node2D, IMainView
     public void Render(MainViewModel model)
     {
         _status.Text = model.StatusText;
-        Log.Trace(LogCategory.View, $"render {model}");
+        _floor.UpdateFloor(model.FloorWidth, model.FloorHeight, model.PlacedItems);
+        Log.Trace(LogCategory.View, $"render; items={model.PlacedItems.Count}");
     }
 
     // ---------------------------------------------------------------- input ---
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (@event is not InputEventKey { Pressed: true, Echo: false } key)
+        switch (@event)
         {
-            return;
-        }
+            case InputEventMouseButton { ButtonIndex: MouseButton.Left, Pressed: true } click:
+                int gridX = (int)click.Position.X / FloorRenderer.CellSize;
+                int gridY = (int)click.Position.Y / FloorRenderer.CellSize;
+                Log.Debug(LogCategory.Input, $"click at pixel ({click.Position.X},{click.Position.Y}) → grid ({gridX},{gridY})");
+                _controller.HandlePlaceAu(
+                    gridX, gridY,
+                    _controller.Session.SelectedAuType,
+                    _controller.Session.SelectedRecipe,
+                    _controller.Session.SelectedRotation);
+                GetViewport().SetInputAsHandled();
+                break;
 
-        if (key.Keycode != Key.Escape)
-        {
-            return;
+            case InputEventKey { Pressed: true, Echo: false } key:
+                switch (key.Keycode)
+                {
+                    case Key.R:
+                        _controller.HandleRotate();
+                        Log.Debug(LogCategory.Input, $"rotate → {_controller.Session.SelectedRotation}");
+                        GetViewport().SetInputAsHandled();
+                        break;
+                    case Key.Z when key.CtrlPressed:
+                        _controller.HandleUndo();
+                        GetViewport().SetInputAsHandled();
+                        break;
+                    case Key.Y when key.CtrlPressed:
+                        _controller.HandleRedo();
+                        GetViewport().SetInputAsHandled();
+                        break;
+                    case Key.Escape:
+                        Log.Debug(LogCategory.Input, "escape pressed; quitting");
+                        GetViewport().SetInputAsHandled();
+                        GetTree().Quit();
+                        break;
+                }
+                break;
         }
-
-        Log.Debug(LogCategory.Input, "escape pressed; quitting");
-        GetViewport().SetInputAsHandled();
-        GetTree().Quit();
     }
 
     // ------------------------------------------------------------- selftest ---
