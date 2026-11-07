@@ -9,28 +9,18 @@ public sealed class GridPositionTests
     [Fact]
     public void IdenticalPositionsAreEqual()
     {
-        GridPosition a = new(3, 7, 2, 2, Direction.North);
-        GridPosition b = new(3, 7, 2, 2, Direction.North);
+        GridPosition a = new(3, 7, 2, 2);
+        GridPosition b = new(3, 7, 2, 2);
 
         Assert.Equal(a, b);
         Assert.Equal(a.GetHashCode(), b.GetHashCode());
     }
 
     [Fact]
-    public void RotationIsExcludedFromEquality()
-    {
-        GridPosition north = new(1, 1, 2, 3, Direction.North);
-        GridPosition east = new(1, 1, 2, 3, Direction.East);
-
-        Assert.Equal(north, east);
-        Assert.Equal(north.GetHashCode(), east.GetHashCode());
-    }
-
-    [Fact]
     public void DifferentOriginIsNotEqual()
     {
-        GridPosition a = new(0, 0, 2, 2, Direction.North);
-        GridPosition b = new(1, 0, 2, 2, Direction.North);
+        GridPosition a = new(0, 0, 2, 2);
+        GridPosition b = new(1, 0, 2, 2);
 
         Assert.NotEqual(a, b);
     }
@@ -38,8 +28,8 @@ public sealed class GridPositionTests
     [Fact]
     public void DifferentSizeSameOriginIsNotEqual()
     {
-        GridPosition small = new(5, 5, 1, 1, Direction.North);
-        GridPosition big = new(5, 5, 2, 2, Direction.North);
+        GridPosition small = new(5, 5, 1, 1);
+        GridPosition big = new(5, 5, 2, 2);
 
         Assert.NotEqual(small, big);
     }
@@ -47,8 +37,8 @@ public sealed class GridPositionTests
     [Fact]
     public void DefaultConstructorOneByOneEqualsExplicitOneByOne()
     {
-        GridPosition shortForm = new(4, 8, Direction.South);
-        GridPosition longForm = new(4, 8, 1, 1, Direction.West);
+        GridPosition shortForm = new(4, 8);
+        GridPosition longForm = new(4, 8, 1, 1);
 
         Assert.Equal(shortForm, longForm);
     }
@@ -57,10 +47,10 @@ public sealed class GridPositionTests
     public void DictionaryLookupByValueWorks()
     {
         Dictionary<GridPosition, string> dict = new();
-        GridPosition key = new(2, 3, 2, 2, Direction.North);
+        GridPosition key = new(2, 3, 2, 2);
         dict[key] = "smelter";
 
-        GridPosition lookup = new(2, 3, 2, 2, Direction.East);
+        GridPosition lookup = new(2, 3, 2, 2);
 
         Assert.True(dict.ContainsKey(lookup));
         Assert.Equal("smelter", dict[lookup]);
@@ -70,10 +60,10 @@ public sealed class GridPositionTests
     public void DictionaryRemoveByValueWorks()
     {
         Dictionary<GridPosition, string> dict = new();
-        GridPosition original = new(10, 10, 3, 3, Direction.North);
+        GridPosition original = new(10, 10, 3, 3);
         dict[original] = "assembler";
 
-        GridPosition removeKey = new(10, 10, 3, 3, Direction.South);
+        GridPosition removeKey = new(10, 10, 3, 3);
         bool removed = dict.Remove(removeKey);
 
         Assert.True(removed);
@@ -83,7 +73,7 @@ public sealed class GridPositionTests
     [Fact]
     public void NullIsNotEqual()
     {
-        GridPosition pos = new(0, 0, Direction.North);
+        GridPosition pos = new(0, 0);
 
         Assert.False(pos.Equals(null));
     }
@@ -91,7 +81,7 @@ public sealed class GridPositionTests
     [Fact]
     public void DifferentTypeIsNotEqual()
     {
-        GridPosition pos = new(0, 0, Direction.North);
+        GridPosition pos = new(0, 0);
 
         Assert.False(pos.Equals("not a grid position"));
     }
@@ -99,8 +89,8 @@ public sealed class GridPositionTests
     [Fact]
     public void EqualityIsSymmetric()
     {
-        GridPosition a = new(7, 3, 4, 2, Direction.West);
-        GridPosition b = new(7, 3, 4, 2, Direction.East);
+        GridPosition a = new(7, 3, 4, 2);
+        GridPosition b = new(7, 3, 4, 2);
 
         Assert.Equal(a.Equals(b), b.Equals(a));
     }
@@ -108,9 +98,9 @@ public sealed class GridPositionTests
     [Fact]
     public void EqualityIsTransitive()
     {
-        GridPosition a = new(1, 2, 3, 3, Direction.North);
-        GridPosition b = new(1, 2, 3, 3, Direction.South);
-        GridPosition c = new(1, 2, 3, 3, Direction.West);
+        GridPosition a = new(1, 2, 3, 3);
+        GridPosition b = new(1, 2, 3, 3);
+        GridPosition c = new(1, 2, 3, 3);
 
         Assert.Equal(a, b);
         Assert.Equal(b, c);
@@ -120,8 +110,8 @@ public sealed class GridPositionTests
     [Fact]
     public void DistinctPositionsCanShareHashWithoutBreakingDictionary()
     {
-        GridPosition a = new(5, 5, 1, 1, Direction.North);
-        GridPosition b = new(5, 5, 2, 2, Direction.North);
+        GridPosition a = new(5, 5, 1, 1);
+        GridPosition b = new(5, 5, 2, 2);
 
         Dictionary<GridPosition, string> dict = new();
         dict[a] = "belt";

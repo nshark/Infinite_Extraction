@@ -179,8 +179,8 @@ public sealed class GameControllerTests : IDisposable
     {
         GameController controller = Build();
         controller.Start();
-        GridPosition pos = new(2, 3, 2, 2, Direction.North);
-        AssemblingUnitState au = new(AuType.Smelter, RecipeId.SmeltScrapToIron);
+        GridPosition pos = new(2, 3, 2, 2);
+        AssemblingUnitState au = new(AuType.Smelter, RecipeId.SmeltScrapToIron, Direction.North);
         _game.Floor.TryPlace(pos, au);
 
         _pacer.RunNext();

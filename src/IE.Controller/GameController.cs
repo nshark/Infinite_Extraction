@@ -10,17 +10,6 @@ namespace IE.Controller;
 
 /// <summary>
 /// Owns the run: turns user intent into model mutations, then repaints the view.
-/// Currently a shell -- there is no gameplay to orchestrate yet, so it boots, paints
-/// once, and holds the two injected boundaries that future handlers will use.
-///
-/// Three rules shape everything here, and all three are load-bearing:
-///   * it never touches an engine type -- views arrive as <see cref="IMainView"/>,
-///     time arrives as <see cref="IPacer"/>, so the whole class is unit-testable;
-///   * every handler ends in exactly one <see cref="Refresh"/> call, so there is a
-///     single UI update path and no drift between them;
-///   * every top-level handler runs inside a tracking helper that pushes one undo
-///     entry iff state actually changed -- to be reintroduced with the first
-///     mutating handler.
 /// </summary>
 public sealed class GameController
 {
@@ -74,14 +63,19 @@ public sealed class GameController
 
     // ----------------------------------------------------------- placement ----
 
-    public bool HandlePlaceAu(int x, int y, AuType auType, RecipeId recipeId, Direction rotation)
+    public bool HandlePlaceAu(int x, int y, AuType auType, RecipeId recipeId, Direction facing)
     {
         JsonNode? auData = GameData.AuTypes[(int)auType];
         int width = auData!["footprintWidth"]!.GetValue<int>();
         int height = auData["footprintHeight"]!.GetValue<int>();
 
-        GridPosition pos = new(x, y, width, height, rotation);
-        AssemblingUnitState au = new(auType, recipeId);
+        if (facing is Direction.East or Direction.West)
+        {
+            (width, height) = (height, width);
+        }
+
+        GridPosition pos = new(x, y, width, height);
+        AssemblingUnitState au = new(auType, recipeId, facing);
 
         if (!Game.Floor.TryPlace(pos, au))
         {
@@ -92,7 +86,7 @@ public sealed class GameController
 
         _undoStack.Push(new PlaceAuEntry(Game.Floor, pos, au));
         _redoStack.Clear();
-        Log.Info(LogCategory.Controller, $"place {auType} at ({x},{y}) {width}x{height} {rotation}");
+        Log.Info(LogCategory.Controller, $"place {auType} at ({x},{y}) {width}x{height} {facing}");
         Refresh();
         return true;
     }
@@ -155,13 +149,23 @@ public sealed class GameController
         foreach (KeyValuePair<GridPosition, IBuildable> entry in Game.Floor._grid)
         {
             GridPosition pos = entry.Key;
-            string typeLabel = entry.Value is AssemblingUnitState au
-                ? au.GetAuType().ToString()
-                : "Unknown";
+            string typeLabel;
+            Direction facing;
+
+            if (entry.Value is AssemblingUnitState au)
+            {
+                typeLabel = au.GetAuType().ToString();
+                facing = au.GetFacing();
+            }
+            else
+            {
+                typeLabel = "Unknown";
+                facing = Direction.North;
+            }
 
             items.Add(new PlacedItemViewModel(
                 pos.X, pos.Y, pos.Width, pos.Height,
-                pos.Rotation, typeLabel));
+                facing, typeLabel));
         }
 
         MainViewModel model = new(

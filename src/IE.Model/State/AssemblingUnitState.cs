@@ -7,23 +7,25 @@ namespace IE.Model.State;
 public class AssemblingUnitState : IBuildable
 {
     private readonly AuType _type;
+    private readonly Direction _facing;
     private int _progress;
     private RecipeData _recipe;
     public FilteredRContainer _inputsInv;
     public FilteredRContainer _outputsInv;
-    public AssemblingUnitState(AuType type, RecipeId recipeId)
+
+    public AssemblingUnitState(AuType type, RecipeId recipeId, Direction facing)
     {
         _type = type;
+        _facing = facing;
         _progress = 0;
         SetRecipe(recipeId);
         _inputsInv = new FilteredRContainer(_recipe.GetInputs());
         _outputsInv = new FilteredRContainer(_recipe.GetOutputs());
     }
 
-    public AuType GetAuType()
-    {
-        return _type;
-    }
+    public AuType GetAuType() => _type;
+
+    public Direction GetFacing() => _facing;
 
     public void Update(int elapsedTicks)
     {

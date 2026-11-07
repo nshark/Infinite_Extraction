@@ -14,5 +14,6 @@ public class GameState
     public void Update(int ticksElapsed)
     {
         _time+=ticksElapsed;
+        Floor.Update(ticksElapsed);
     }
 }

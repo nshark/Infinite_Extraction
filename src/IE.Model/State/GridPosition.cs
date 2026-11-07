@@ -2,25 +2,23 @@ namespace IE.Model.State;
 
 public class GridPosition
 {
-    public Direction Rotation;
-    public int X {get;}
+    public int X { get; }
     public int Y { get; }
-    public int Width { get;private set; }
-    public int Height { get;private set; }
-    public GridPosition(int x, int y, int width, int height, Direction rotation)
+    public int Width { get; }
+    public int Height { get; }
+
+    public GridPosition(int x, int y, int width, int height)
     {
         X = x;
         Y = y;
-        Rotation = rotation;
         Width = width;
         Height = height;
     }
 
-    public GridPosition(int x, int y, Direction rotation)
+    public GridPosition(int x, int y)
     {
         X = x;
         Y = y;
-        Rotation = rotation;
         Width = 1;
         Height = 1;
     }

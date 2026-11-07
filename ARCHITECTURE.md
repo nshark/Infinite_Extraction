@@ -4,9 +4,10 @@ Infinite Extraction is a 2D game: a C# core with a Godot 4 view layer. The core 
 all gameplay logic and is framework-free; Godot supplies rendering, input, and timing
 and nothing else.
 
-The core is currently a shell: the layering, the logging system, the view boundary,
-and the pacer are in place, and there is no gameplay on top of them yet. Domain state
-and rules go in `IE.Model`, orchestration in `IE.Controller` — see Extension points.
+Domain state and static rules live in `IE.Model`; orchestration, undo, and the
+view boundary live in `IE.Controller`. The model holds a factory floor with two
+spatial subsystems — a keyed grid for assembling units (AUs) and a `PathNetwork`
+for belt/pipe logistics — plus recipes, resources, and production ticking.
 
 ## Layers
 
@@ -27,8 +28,8 @@ the purity proof.
 
 | Project | Path | May reference | Holds |
 |---|---|---|---|
-| `IE.Model` | `src/IE.Model/` | nothing | logging system; domain state, static rules, primitives |
-| `IE.Controller` | `src/IE.Controller/` | `IE.Model` | input handling, mutation orchestration, view/pacer interfaces |
+| `IE.Model` | `src/IE.Model/` | nothing | logging system; domain state (`GameState`, `FactoryFloorState`, `AssemblingUnitState`, `PathNetwork`), static rules, identity enums, `GameData` |
+| `IE.Controller` | `src/IE.Controller/` | `IE.Model` | `GameController` (placement, undo/redo, sim tick, rotation), `SessionState`, view/pacer interfaces |
 | `IE.ViewMath` | `src/IE.ViewMath/` | `IE.Model` | viewport/DPI math (the only core assembly where floats are legal) |
 | `IE.App` | `app/` | all three + Godot | scene roots, view implementations, platform adapters |
 | `IE.Tests` | `tests/IE.Tests/` | all three | xUnit suite, fakes, architecture guardrails |
@@ -48,6 +49,56 @@ the purity proof.
 - **`SessionState` is split by snapshot eligibility.** User-intent fields belong in an
   undo snapshot, transient ones (`StatusText`, `RendersThisSession`) never do.
 
+## Domain model
+
+`GameState` is the top-level root. It holds a tick counter and one `FactoryFloorState`.
+`GameState.Update(int ticksElapsed)` propagates ticks to the floor, which propagates
+to each AU.
+
+### Factory floor
+
+`FactoryFloorState` owns two spatial subsystems that share collision checking:
+
+- **`_grid`** — `Dictionary<GridPosition, IBuildable>` keyed by position. Holds AUs.
+- **`BeltNetwork`** — a `PathNetwork` managing belt/pipe logistics separately.
+
+`TryPlace` checks collision against both subsystems, then routes to the typed list
+(`AssemblingUnitStates` for AUs, `BeltNetwork.Place` for `PathComponent`s). `Remove`
+delegates to whichever subsystem owns the position.
+
+### Assembling units
+
+`AssemblingUnitState` holds an `AuType`, a `RecipeId`, a `Direction` facing, production
+progress, and input/output `FilteredRContainer` inventories. `Update(int ticksElapsed)`
+advances progress; when it reaches the recipe time, it checks inputs and produces
+outputs (check-at-production-time model). Progress clamps via modulo on starvation.
+
+`GridPosition` is a pure spatial type: `(X, Y, Width, Height)`. Width and Height are
+pre-swapped at construction time for East/West-facing buildings, so the grid stores the
+physical footprint directly. Equality is on all four fields; hash is on `(X, Y)`.
+
+`Direction` is an enum (`North`, `East`, `South`, `West`). `DirectionConverter.Convert`
+maps each to a unit vector: North=(0,1), East=(1,0), South=(0,-1), West=(-1,0).
+
+### Belt network
+
+`PathNetwork` represents belts as `Path` objects — straight-line stretches of collinear
+same-direction belt pieces. Placing a belt adjacent to an existing same-direction path
+extends that path; placing between two such paths merges them. Destroying an endpoint
+shortens the path; destroying an interior cell splits it into two independent paths;
+destroying a single-cell path removes it.
+
+`PathComponent` implements `IBuildable` and carries a `PathComponentType` (Belt,
+Underground, Splitter) and a `Direction` facing. The network is keyed by `GridPosition`,
+re-keyed on every mutation.
+
+### Data and identity
+
+`GameData` loads AU type definitions (footprint, recipes) from embedded JSON.
+`AuType`, `RecipeId`, and `ResourceId` are enums that double as JSON array indices.
+`RContainer` is a resource-to-quantity dictionary; `FilteredRContainer` wraps one with
+a filter set (recipe inputs or outputs).
+
 ## Call flow: boot
 
 1. Godot loads `res://scenes/Main.tscn`; `MainScene._Ready` runs.
@@ -64,15 +115,37 @@ the purity proof.
 handling belongs in the controller: the scene maps a key to a handler and never
 touches state itself.
 
+## Call flow: simulation tick
+
+`GameController.Start` calls `ScheduleTick`, which asks `IPacer` to fire `OnTick`
+every 50 ms (`TickIntervalMs`). `OnTick` calls `Game.Update(1)`, which propagates
+one tick through `GameState` → `FactoryFloorState` → each `AssemblingUnitState`.
+Then it calls `Refresh` and reschedules. Off-screen floors can call `Update(N)` in
+bulk for the same result (staggered update).
+
+## Call flow: placement
+
+`HandlePlaceAu` reads the AU footprint from `GameData`, swaps width/height for
+East/West facing, builds a `GridPosition` and an `AssemblingUnitState`, and delegates
+to `FactoryFloorState.TryPlace`. On success it pushes a `PlaceAuEntry` onto the undo
+stack and clears the redo stack.
+
+`HandleUndo` / `HandleRedo` pop/push `IUndoEntry` objects between the two stacks.
+`HandleRotate` cycles `SessionState.SelectedRotation` through the four directions.
+
+All handlers end in `Refresh`.
+
 ## Extension points
 
-- A domain type and a static rules class in `IE.Model`, integer-only, no I/O.
-- A `Handle*Pressed` method on `GameController` per user intent, wrapped in a
-  tracking helper that snapshots pre-state, runs the body, and pushes one undo entry
-  iff state changed — exceptions propagate and push nothing.
-- Fields on `MainViewModel` for whatever the view must paint, never a reference to
-  live state.
+- Domain types and static rules in `IE.Model`, integer-only, no I/O.
+- A `Handle*` method on `GameController` per user intent; `PlaceAuEntry` is the
+  undo entry pattern — implement `IUndoEntry` for each new mutating action.
+- Fields on `MainViewModel` / `PlacedItemViewModel` for whatever the view must
+  paint, never a reference to live state.
 - A key case in `MainScene._UnhandledInput` forwarding to the handler.
+- New `PathComponentType` variants for logistics buildings that route through
+  `PathNetwork`; new `IBuildable` implementations for building types that route
+  through `FactoryFloorState.TryPlace`.
 
 ## Timing
 
